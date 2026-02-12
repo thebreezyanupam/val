@@ -19,7 +19,7 @@
   ];
 
   const DESKTOP_NOTE_MESSAGES = [
-    '...the "Just say no" button is a little shy and...',
+    '"NO" button is a little shy....',
     'Catch me if you can 🏃',
     'What do we say to rejection? ⚔️',
     'Not today. 😏',
@@ -81,10 +81,6 @@
     detectMobile();
     createHearts();
     updateNoButton();
-    if (isMobile) {
-      enableSlippery();
-      moveNo();
-    }
     bindEvents();
     if (!isMobile) {
       startContinuousCheck();
@@ -142,7 +138,12 @@
     if (slippery) return;
     slippery = true;
     noBtn.classList.add('slippery');
-    noBtn.style.pointerEvents = 'none';
+    
+    // Only disable pointer events on desktop (mobile needs to tap to trigger evade)
+    if (!isMobile) {
+      noBtn.style.pointerEvents = 'none';
+    }
+    
     card.appendChild(noBtn);
 
     const r = btnRow.getBoundingClientRect();
@@ -245,7 +246,7 @@
     } else {
       noBtn.textContent = 'No 🙃';
       noBtn.classList.remove('yes-style', 'stationary');
-      if (slippery) {
+      if (slippery && !isMobile) {
         noBtn.style.pointerEvents = 'none';
       }
     }
@@ -323,7 +324,7 @@
   }
 
   function preventInteraction(e) {
-    if (slippery && !hasGivenUp()) {
+    if (!isMobile && slippery && !hasGivenUp()) {
       e.preventDefault();
       e.stopPropagation();
       return false;
@@ -331,7 +332,7 @@
   }
 
   function onNoBtnClick(e) {
-    if (slippery && !hasGivenUp()) {
+    if (!isMobile && slippery && !hasGivenUp()) {
       e.preventDefault();
       e.stopPropagation();
       return false;
@@ -343,7 +344,7 @@
   }
 
   function onNoBtnMouseDown(e) {
-    if (slippery && !hasGivenUp()) {
+    if (!isMobile && slippery && !hasGivenUp()) {
       e.preventDefault();
       e.stopPropagation();
       return false;
@@ -355,12 +356,13 @@
       noBtn.addEventListener('pointerdown', evade, { passive: false });
     } else {
       document.addEventListener('mousemove', onCardMouseMove);
+      // Only add these prevention handlers on desktop
+      noBtn.addEventListener('mousedown', onNoBtnMouseDown, { capture: true });
+      noBtn.addEventListener('pointerdown', preventInteraction, { capture: true });
+      noBtn.addEventListener('touchstart', preventInteraction, { passive: false, capture: true });
     }
 
-    noBtn.addEventListener('mousedown', onNoBtnMouseDown, { capture: true });
-    noBtn.addEventListener('pointerdown', preventInteraction, { capture: true });
     noBtn.addEventListener('click', onNoBtnClick, { capture: true });
-    noBtn.addEventListener('touchstart', preventInteraction, { passive: false, capture: true });
     yesBtn.addEventListener('click', showYes);
   }
 
