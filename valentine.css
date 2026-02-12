@@ -29,6 +29,10 @@ body {
     linear-gradient(135deg, var(--bg1), var(--bg2));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 /* Floating hearts */
@@ -212,16 +216,33 @@ button {
   white-space: nowrap;
 }
 
-/* Slippery No button */
+/* Slippery No button - smaller when slipping */
 .slippery {
   position: absolute !important;
   transform: translate(-50%, -50%);
-  transition: left 0.4s cubic-bezier(0.25, 0.5, 0.5, 1), top 0.4s cubic-bezier(0.25, 0.5, 0.5, 1);
+  transition: none;
   will-change: left, top;
+  pointer-events: auto;
+}
+
+#noBtn.slippery {
+  padding: 9px 16px;
+  font-size: clamp(13px, 1.8vw, 15px);
 }
 
 #noBtn.slippery:hover {
   transform: translate(-50%, -50%);
+}
+
+#noBtn.yes-style {
+  background: var(--yes);
+  cursor: pointer;
+}
+
+#noBtn.stationary {
+  position: absolute !important;
+  transform: translate(-50%, -50%);
+  transition: none;
 }
 
 /* Yay section */
