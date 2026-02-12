@@ -240,9 +240,19 @@
   function updateNoButton() {
     if (hasGivenUp()) {
       noBtn.textContent = 'Yes 💘';
-      noBtn.classList.add('yes-style', 'stationary');
-      noBtn.classList.remove('slippery');
+      noBtn.classList.add('yes-style');
+      noBtn.classList.remove('slippery', 'stationary');
       noBtn.style.pointerEvents = 'auto';
+      
+      // Move button back to the button row
+      if (slippery) {
+        btnRow.appendChild(noBtn);
+        noBtn.style.left = '';
+        noBtn.style.top = '';
+        noBtn.style.transform = '';
+        noBtn.style.position = '';
+      }
+      slippery = false;
     } else {
       noBtn.textContent = 'No 🙃';
       noBtn.classList.remove('yes-style', 'stationary');
@@ -264,9 +274,7 @@
     noPressCount++;
     updateNoButton();
     if (hasGivenUp()) {
-      if (noPressCount > DESKTOP_NOTE_MESSAGES.length - 1) {
-        showYes();
-      }
+      // Stop slipping, turn into Yes button, but don't auto-click
       return;
     }
     if (!slippery) enableSlippery();
