@@ -10,10 +10,10 @@
     'Not today. 😏',
     'You almost caught it',
     'Just kidding',
-    'Keep trying',
-    'Keep trying....',
-    'Keep trying....',
-    'Keep trying....',
+    'Just go for yes girl',
+    'Just go for yes girl',
+    'Just go for yes girl',
+    'Just go for yes girl',
     "You're still trying girl? Get the hint already....",
     "Okay, that's it"
   ];
@@ -25,10 +25,10 @@
     'Not today. 😏',
     'You almost caught it',
     'Just kidding',
-    'Keep trying',
-    'Keep trying....',
-    'Keep trying....',
-    'Keep trying....',
+    'Just go for yes girl',
+    'Just go for yes girl',
+    'Just go for yes girl',
+    'Just go for yes girl',
     "You're still trying girl? Get the hint already....",
     "Okay, that's it"
   ];
@@ -57,8 +57,25 @@
   let cursorWasClose = false;
   const MOVE_THROTTLE_MS = 100;
   const EVADE_DEBOUNCE_MS = 400;
-  const PROXIMITY_RADIUS = 60;
+  const PROXIMITY_RADIUS = 100;
   const MIN_DISTANCE_FROM_PREVIOUS = 70;
+
+  // Fixed positions for the button (as percentages of card dimensions)
+  // Format: [x%, y%] where x and y are percentages (0-100)
+  const FIXED_POSITIONS = [
+    [75, 30],   // Move 0: Top right
+    [25, 30],   // Move 1: Top left
+    [75, 60],   // Move 2: Bottom right
+    [25, 60],   // Move 3: Bottom left
+    [50, 25],   // Move 4: Top center
+    [15, 45],   // Move 5: Left middle
+    [85, 45],   // Move 6: Right middle
+    [50, 70],   // Move 7: Bottom center
+    [35, 35],   // Move 8: Upper left area
+    [65, 65],   // Move 9: Lower right area
+    [50, 45],   // Move 10: Center
+    [40, 55]    // Move 11: Slightly off center
+  ];
 
   function init() {
     detectMobile();
@@ -69,6 +86,39 @@
       moveNo();
     }
     bindEvents();
+    if (!isMobile) {
+      startContinuousCheck();
+    }
+  }
+
+  function startContinuousCheck() {
+    function checkProximity() {
+      if (questionBlock.style.display === 'none' || hasGivenUp()) {
+        requestAnimationFrame(checkProximity);
+        return;
+      }
+      
+      if (lastCursorX && lastCursorY && slippery && lastNoX != null && lastNoY != null) {
+        const cardRect = card.getBoundingClientRect();
+        const cursorX = lastCursorX - cardRect.left;
+        const cursorY = lastCursorY - cardRect.top;
+        const dx = cursorX - lastNoX;
+        const dy = cursorY - lastNoY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < PROXIMITY_RADIUS && !cursorWasClose) {
+          cursorWasClose = true;
+          noPressCount++;
+          updateNoButton();
+          moveNo();
+        } else if (distance >= PROXIMITY_RADIUS * 1.5) {
+          cursorWasClose = false;
+        }
+      }
+      
+      requestAnimationFrame(checkProximity);
+    }
+    requestAnimationFrame(checkProximity);
   }
 
   function detectMobile() {
@@ -92,6 +142,7 @@
     if (slippery) return;
     slippery = true;
     noBtn.classList.add('slippery');
+    noBtn.style.pointerEvents = 'none';
     card.appendChild(noBtn);
 
     const r = btnRow.getBoundingClientRect();
@@ -123,6 +174,7 @@
 
   function moveNo() {
     if (hasGivenUp()) return true;
+    
     const c = card.getBoundingClientRect();
     const b = noBtn.getBoundingClientRect();
     const padding = 30;
@@ -133,82 +185,51 @@
     }
     const minY = 80;
 
-    function distFromPrev(cx, cy) {
-      if (lastNoX == null || lastNoY == null) return Infinity;
-      return Math.sqrt((cx - lastNoX) ** 2 + (cy - lastNoY) ** 2);
-    }
-
-    function tryPlace(x, y, skipDistanceCheck) {
-      const centerX = x + b.width / 2;
-      const centerY = y + b.height / 2;
-      if (overlapsYes(centerX, centerY)) return false;
-      if (!skipDistanceCheck && distFromPrev(centerX, centerY) < MIN_DISTANCE_FROM_PREVIOUS) return false;
+    // Get the position index (cycles through the array if we exceed it)
+    const positionIndex = noPressCount % FIXED_POSITIONS.length;
+    const [xPercent, yPercent] = FIXED_POSITIONS[positionIndex];
+    
+    // Calculate available space
+    const availableWidth = c.width - 2 * padding - b.width;
+    const availableHeight = maxY - minY;
+    
+    // Convert percentages to actual positions
+    const x = padding + (availableWidth * xPercent / 100);
+    const y = minY + (availableHeight * yPercent / 100);
+    
+    // Set button center position
+    const centerX = x + b.width / 2;
+    const centerY = y + b.height / 2;
+    
+    // Check if it overlaps with Yes button, if so, adjust slightly
+    if (overlapsYes(centerX, centerY)) {
+      // Try shifting it away from the Yes button
+      const yesRect = yesBtn.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      const yesCenterX = (yesRect.left + yesRect.right) / 2 - cardRect.left;
+      const yesCenterY = (yesRect.top + yesRect.bottom) / 2 - cardRect.top;
+      
+      // Move away from Yes button
+      const dx = centerX - yesCenterX;
+      const dy = centerY - yesCenterY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const shiftAmount = 150;
+      
+      const newCenterX = Math.max(padding + b.width/2, Math.min(c.width - padding - b.width/2, centerX + (dx / dist) * shiftAmount));
+      const newCenterY = Math.max(minY + b.height/2, Math.min(maxY - b.height/2, centerY + (dy / dist) * shiftAmount));
+      
+      noBtn.style.left = newCenterX + 'px';
+      noBtn.style.top = newCenterY + 'px';
+      lastNoX = newCenterX;
+      lastNoY = newCenterY;
+    } else {
       noBtn.style.left = centerX + 'px';
       noBtn.style.top = centerY + 'px';
       lastNoX = centerX;
       lastNoY = centerY;
-      return true;
     }
-
-    if (isMobile) {
-      for (let attempt = 0; attempt < 50; attempt++) {
-        const x = padding + Math.random() * (c.width - b.width - 2 * padding);
-        const y = minY + Math.random() * Math.max(0, maxY - minY);
-        if (tryPlace(x, y, false)) return true;
-      }
-      for (let attempt = 0; attempt < 20; attempt++) {
-        const x = padding + Math.random() * (c.width - b.width - 2 * padding);
-        const y = minY + Math.random() * Math.max(0, maxY - minY);
-        if (tryPlace(x, y, true)) return true;
-      }
-      return tryPlace(c.width - padding - b.width, minY, true);
-    } else {
-      const cursorX = lastCursorX - c.left;
-      const cursorY = lastCursorY - c.top;
-      const halfW = c.width / 2;
-      const halfH = (minY + maxY) / 2;
-      for (let i = 0; i < 50; i++) {
-        const x = cursorX < halfW
-          ? halfW + padding + Math.random() * Math.max(0, c.width - halfW - b.width - padding * 2)
-          : padding + Math.random() * Math.max(0, halfW - b.width - padding * 2);
-        const y = cursorY < halfH
-          ? (minY + maxY) / 2 + Math.random() * Math.max(0, maxY - (minY + maxY) / 2)
-          : minY + Math.random() * Math.max(0, (minY + maxY) / 2 - minY);
-        const bx = x + b.width / 2;
-        const by = y + b.height / 2;
-        const dist = Math.sqrt((bx - cursorX) ** 2 + (by - cursorY) ** 2);
-        if (dist >= PROXIMITY_RADIUS + 100 && tryPlace(x, y, false)) return true;
-      }
-      for (let i = 0; i < 30; i++) {
-        const x = cursorX < halfW
-          ? halfW + padding + Math.random() * Math.max(0, c.width - halfW - b.width - padding * 2)
-          : padding + Math.random() * Math.max(0, halfW - b.width - padding * 2);
-        const y = cursorY < halfH
-          ? (minY + maxY) / 2 + Math.random() * Math.max(0, maxY - (minY + maxY) / 2)
-          : minY + Math.random() * Math.max(0, (minY + maxY) / 2 - minY);
-        if (tryPlace(x, y, true)) return true;
-      }
-      
-      for (let i = 0; i < 30; i++) {
-        const x = padding + Math.random() * Math.max(0, c.width - b.width - 2 * padding);
-        const y = minY + Math.random() * Math.max(0, maxY - minY);
-        if (tryPlace(x, y, true)) return true;
-      }
-      
-      const corners = [
-        [padding, minY],
-        [c.width - padding - b.width, minY],
-        [padding, maxY],
-        [c.width - padding - b.width, maxY],
-        [c.width / 2 - b.width / 2, minY],
-        [c.width / 2 - b.width / 2, maxY],
-        [c.width / 2 - b.width / 2, (minY + maxY) / 2]
-      ];
-      for (const [x, y] of corners) {
-        if (tryPlace(x, y, true)) return true;
-      }
-      return false;
-    }
+    
+    return true;
   }
 
   function hasGivenUp() {
@@ -220,9 +241,13 @@
       noBtn.textContent = 'Yes 💘';
       noBtn.classList.add('yes-style', 'stationary');
       noBtn.classList.remove('slippery');
+      noBtn.style.pointerEvents = 'auto';
     } else {
       noBtn.textContent = 'No 🙃';
       noBtn.classList.remove('yes-style', 'stationary');
+      if (slippery) {
+        noBtn.style.pointerEvents = 'none';
+      }
     }
     if (noteEl) {
       noteEl.textContent = DESKTOP_NOTE_MESSAGES[Math.min(noPressCount, DESKTOP_NOTE_MESSAGES.length - 1)];
@@ -247,46 +272,81 @@
     moveNo();
   }
 
-  function isCursorOverButton(e) {
-    const rect = noBtn.getBoundingClientRect();
-    return e.clientX >= rect.left && 
-           e.clientX <= rect.right && 
-           e.clientY >= rect.top && 
-           e.clientY <= rect.bottom;
+  function isCursorNearButton(e) {
+    if (!slippery || lastNoX == null || lastNoY == null) {
+      const rect = noBtn.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dx = e.clientX - centerX;
+      const dy = e.clientY - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      return distance <= PROXIMITY_RADIUS;
+    }
+    
+    const cardRect = card.getBoundingClientRect();
+    const cursorX = e.clientX - cardRect.left;
+    const cursorY = e.clientY - cardRect.top;
+    const dx = cursorX - lastNoX;
+    const dy = cursorY - lastNoY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance <= PROXIMITY_RADIUS;
   }
 
   function onCardMouseMove(e) {
     if (isMobile) return;
     if (questionBlock.style.display === 'none') return;
     if (hasGivenUp()) return;
+    
     lastCursorX = e.clientX;
     lastCursorY = e.clientY;
     
-    const isOver = isCursorOverButton(e);
+    const isNear = isCursorNearButton(e);
     
-    if (!isOver) {
+    if (!isNear) {
       cursorWasClose = false;
       return;
     }
     
-    if (cursorWasClose) return;
-    
-    enableSlippery();
-    cursorWasClose = true;
-    noPressCount++;
-    updateNoButton();
-    const moved = moveNo();
-    if (!moved) {
-      cursorWasClose = false;
-      noPressCount--;
+    // If cursor gets close, move the button away immediately
+    if (!cursorWasClose) {
+      if (!slippery) enableSlippery();
+      cursorWasClose = true;
+      noPressCount++;
       updateNoButton();
+      const moved = moveNo();
+      if (!moved) {
+        cursorWasClose = false;
+        noPressCount--;
+        updateNoButton();
+      }
+    }
+  }
+
+  function preventInteraction(e) {
+    if (slippery && !hasGivenUp()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
     }
   }
 
   function onNoBtnClick(e) {
+    if (slippery && !hasGivenUp()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
     if (hasGivenUp()) {
       e.preventDefault();
       showYes();
+    }
+  }
+
+  function onNoBtnMouseDown(e) {
+    if (slippery && !hasGivenUp()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
     }
   }
 
@@ -297,7 +357,10 @@
       document.addEventListener('mousemove', onCardMouseMove);
     }
 
-    noBtn.addEventListener('click', onNoBtnClick);
+    noBtn.addEventListener('mousedown', onNoBtnMouseDown, { capture: true });
+    noBtn.addEventListener('pointerdown', preventInteraction, { capture: true });
+    noBtn.addEventListener('click', onNoBtnClick, { capture: true });
+    noBtn.addEventListener('touchstart', preventInteraction, { passive: false, capture: true });
     yesBtn.addEventListener('click', showYes);
   }
 
